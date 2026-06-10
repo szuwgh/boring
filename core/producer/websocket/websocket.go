@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/szuwgh/boring/core/producer"
+	"github.com/szuwgh/boring/core/queue"
 )
 
 // registerResponse is the JSON response from POST /api/v1/agents/register
@@ -42,10 +42,10 @@ type WebSocketProducer struct {
 }
 
 // Compile-time check: WebSocketProducer implements both Producer and Replier.
-var _ producer.Producer = (*WebSocketProducer)(nil)
-var _ producer.Replier = (*WebSocketProducer)(nil)
+var _ queue.Producer = (*WebSocketProducer)(nil)
+var _ queue.Replier = (*WebSocketProducer)(nil)
 
-func WebSocketProducerBuilder(config *WebSocketProducerConfig) producer.Producer {
+func WebSocketProducerBuilder(config *WebSocketProducerConfig) queue.Producer {
 	if config.ReconnectSec <= 0 {
 		config.ReconnectSec = 5
 	}

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/szuwgh/boring/core/consumer"
+	"github.com/szuwgh/boring/core/queue"
 )
 
 // wsMessage mirrors the IM Server's WSMessage format.
@@ -34,21 +34,21 @@ type ClaudeConsumer struct {
 	config   *ClaudeConsumerConfig
 	sessions map[int64]string // per-user session (IM mode)
 	mu       sync.Mutex
-	replyFn  consumer.ReplyFunc // non-nil when wired to a Replier producer
+	replyFn  queue.ReplyFunc // non-nil when wired to a Replier producer
 }
 
 // Compile-time checks
-var _ consumer.Consumer = (*ClaudeConsumer)(nil)
-var _ consumer.ReplyAware = (*ClaudeConsumer)(nil)
+var _ queue.Consumer = (*ClaudeConsumer)(nil)
+var _ queue.ReplyAware = (*ClaudeConsumer)(nil)
 
-func ClaudeBuilder(config *ClaudeConsumerConfig) consumer.Consumer {
+func ClaudeBuilder(config *ClaudeConsumerConfig) queue.Consumer {
 	return &ClaudeConsumer{
 		config:   config,
 		sessions: make(map[int64]string),
 	}
 }
 
-func (c *ClaudeConsumer) SetReplyFunc(fn consumer.ReplyFunc) {
+func (c *ClaudeConsumer) SetReplyFunc(fn queue.ReplyFunc) {
 	c.replyFn = fn
 }
 

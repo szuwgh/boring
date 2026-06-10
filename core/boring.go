@@ -4,135 +4,71 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/szuwgh/boring/core/consumer"
-	"github.com/szuwgh/boring/core/producer"
+	"github.com/szuwgh/boring/core/config"
 	"github.com/szuwgh/boring/core/queue"
+	"github.com/szuwgh/boring/core/stream"
 )
 
 var EngineInstance *Engine
 
 type Engine struct {
-	boring map[string]*Boring
+	queue  map[string]*queue.Queuing
+	stream map[string]*stream.Pipeline
 }
 
-func (e *Engine) GetBoring(name string) (*Boring, bool) {
-	b, ok := e.boring[name]
+func (e *Engine) GetBoring(name string) (*queue.Queuing, bool) {
+	b, ok := e.queue[name]
 	return b, ok
 }
 
 func (e *Engine) Run() {
-	for _, b := range e.boring {
+	for _, b := range e.queue {
 		b.Run()
+	}
+	for _, s := range e.stream {
+		s.Run()
 	}
 }
 
-type Boring struct {
-	producer producer.Producer
-	consumer []consumer.Consumer
-	queue    queue.Queue
-	done     chan struct{}
+func (e *Engine) Stop() {
+	for _, b := range e.queue {
+		b.Stop()
+	}
+	for _, s := range e.stream {
+		if err := s.Stop(); err != nil {
+			log.Printf("[boring] stream stop error: %v", err)
+		}
+	}
 }
 
-func NewEngineFromConfig(cfg *Config, reg *Register) (*Engine, error) {
+func NewEngineFromConfig(cfg *config.Config, reg *Register) (*Engine, error) {
 	engine := &Engine{
-		boring: make(map[string]*Boring),
+		queue:  make(map[string]*queue.Queuing),
+		stream: make(map[string]*stream.Pipeline),
 	}
 
 	for _, bc := range cfg.Boring {
-		b := &Boring{
-			queue: queue.NewMemoryQueue(1024),
+		mode := bc.Mode
+		if mode == "" {
+			mode = "message"
 		}
-
-		// Build producer
-		if bc.Producer != nil {
-			typeName, _ := bc.Producer["type"].(string)
-			if typeName == "" {
-				return nil, fmt.Errorf("pipeline %q: producer missing type", bc.Name)
+		switch mode {
+		case "message":
+			b, err := queue.NewMessagePipelineFromConfig(bc, reg)
+			if err != nil {
+				return nil, err
 			}
-			builder, ok := reg.GetProducer(typeName)
-			if !ok {
-				return nil, fmt.Errorf("pipeline %q: unknown producer type %q", bc.Name, typeName)
+			engine.queue[bc.Name] = b
+		case "stream":
+			s, err := stream.NewStreamPipelineFromConfig(bc, reg)
+			if err != nil {
+				return nil, err
 			}
-			b.producer = builder(bc.Producer)
+			engine.stream[bc.Name] = s
+		default:
+			return nil, fmt.Errorf("pipeline %q: unknown mode %q", bc.Name, bc.Mode)
 		}
-
-		// Build consumers
-		for i, cc := range bc.Consumers {
-			typeName, _ := cc["type"].(string)
-			if typeName == "" {
-				return nil, fmt.Errorf("pipeline %q: consumer[%d] missing type", bc.Name, i)
-			}
-			builder, ok := reg.GetConsumer(typeName)
-			if !ok {
-				return nil, fmt.Errorf("pipeline %q: unknown consumer type %q", bc.Name, typeName)
-			}
-			b.consumer = append(b.consumer, builder(cc))
-		}
-
-		engine.boring[bc.Name] = b
 	}
 
 	return engine, nil
-}
-
-func (b *Boring) Consumers() []consumer.Consumer {
-	return b.consumer
-}
-
-func (b *Boring) Run() {
-	b.done = make(chan struct{})
-
-	// If the producer supports replies, wire it to consumers that need it.
-	// This enables bidirectional flow: WS producer ← im_reply consumer.
-	if replier, ok := b.producer.(producer.Replier); ok {
-		for _, c := range b.consumer {
-			if ra, ok := c.(consumer.ReplyAware); ok {
-				ra.SetReplyFunc(replier.Reply)
-			}
-		}
-	}
-
-	// Producer goroutine: produce messages and enqueue them
-	go func() {
-		defer b.queue.Close()
-		for {
-			select {
-			case <-b.done:
-				return
-			default:
-			}
-			data, err := b.producer.Produce()
-			if err != nil {
-				return
-			}
-			b.queue.Enqueue(data)
-		}
-	}()
-
-	// Consumer goroutine: dequeue messages and fan out to all consumers
-	go func() {
-		for {
-			data, err := b.queue.Dequeue()
-			if err != nil {
-				return
-			}
-			for _, c := range b.consumer {
-				err := c.Consume(data)
-				if err != nil {
-					log.Printf("[boring] consumer error: %v", err)
-				}
-			}
-		}
-	}()
-
-	// Start producer
-	err := b.producer.Start()
-	if err != nil {
-		log.Printf("[boring] producer start failed: %v", err)
-		return
-	}
-}
-
-func (b *Boring) Stop() {
-	close(b.done)
 }

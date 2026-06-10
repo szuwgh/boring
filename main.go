@@ -10,12 +10,15 @@ import (
 	"syscall"
 
 	"github.com/szuwgh/boring/core"
-	"github.com/szuwgh/boring/core/consumer"
+	"github.com/szuwgh/boring/core/config"
 	"github.com/szuwgh/boring/core/consumer/claude"
+	"github.com/szuwgh/boring/core/consumer/sshforward"
 	"github.com/szuwgh/boring/core/consumer/terminal"
-	"github.com/szuwgh/boring/core/producer"
 	"github.com/szuwgh/boring/core/producer/http"
+	"github.com/szuwgh/boring/core/producer/tcp"
 	"github.com/szuwgh/boring/core/producer/websocket"
+	"github.com/szuwgh/boring/core/queue"
+	"github.com/szuwgh/boring/core/stream"
 )
 
 type stdinProducer struct {
@@ -41,25 +44,29 @@ func (s *stdinProducer) Start() error {
 
 type stdinConfig struct{}
 
-func stdinBuilder(config *stdinConfig) producer.Producer {
+func stdinBuilder(config *stdinConfig) queue.Producer {
 	return &stdinProducer{scanner: bufio.NewScanner(os.Stdin)}
 }
 
 func main() {
 	// Register plugin builders
 	core.RegisterInstance.RegisterConsumer("terminal",
-		consumer.MakeConsumerBuilder(terminal.TerminalBuilder))
+		queue.MakeConsumerBuilder(terminal.TerminalBuilder))
 	core.RegisterInstance.RegisterConsumer("claude",
-		consumer.MakeConsumerBuilder(claude.ClaudeBuilder))
+		queue.MakeConsumerBuilder(claude.ClaudeBuilder))
 	core.RegisterInstance.RegisterProducer("stdin",
-		producer.MakeProducerBuilder(stdinBuilder))
+		queue.MakeProducerBuilder(stdinBuilder))
 	core.RegisterInstance.RegisterProducer("http",
-		producer.MakeProducerBuilder(http.NewHttpProducer))
+		queue.MakeProducerBuilder(http.NewHttpProducer))
 	core.RegisterInstance.RegisterProducer("websocket",
-		producer.MakeProducerBuilder(websocket.WebSocketProducerBuilder))
+		queue.MakeProducerBuilder(websocket.WebSocketProducerBuilder))
+	core.RegisterInstance.RegisterStreamProducer("tcp_listener",
+		stream.MakeProducerBuilder(tcp.ListenerBuilder))
+	core.RegisterInstance.RegisterStreamConsumer("ssh_forward",
+		stream.MakeConsumerBuilder(sshforward.Builder))
 
 	// Load config
-	cfg, err := core.LoadConfig("boring.toml")
+	cfg, err := config.LoadConfig("boring.toml")
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
@@ -70,7 +77,7 @@ func main() {
 		log.Fatalf("failed to create engine: %v", err)
 	}
 
-	fmt.Println("boring started, type messages to stdin (Ctrl+C to quit)")
+	fmt.Println("boring started (Ctrl+C to quit)")
 	engine.Run()
 
 	// Wait for interrupt signal
@@ -78,4 +85,5 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 	fmt.Println("\nshutting down...")
+	engine.Stop()
 }

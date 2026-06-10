@@ -1,4 +1,4 @@
-package core
+package config
 
 import (
 	"os"
@@ -12,6 +12,7 @@ type Config struct {
 
 type BoringConfig struct {
 	Name      string           `toml:"name"`
+	Mode      string           `toml:"mode"`
 	Producer  map[string]any   `toml:"producer"`
 	Consumers []map[string]any `toml:"consumer"`
 }

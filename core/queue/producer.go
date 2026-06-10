@@ -1,4 +1,4 @@
-package producer
+package queue
 
 import (
 	toml "github.com/pelletier/go-toml/v2"

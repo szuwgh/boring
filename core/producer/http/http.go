@@ -6,7 +6,7 @@ import (
 	"net"
 	nethttp "net/http"
 
-	"github.com/szuwgh/boring/core/producer"
+	"github.com/szuwgh/boring/core/queue"
 )
 
 type HttpProducer struct {
@@ -14,7 +14,7 @@ type HttpProducer struct {
 	dataCh chan []byte
 }
 
-func NewHttpProducer(cfg *HttpProducerConfig) producer.Producer {
+func NewHttpProducer(cfg *HttpProducerConfig) queue.Producer {
 	if cfg.Host == "" {
 		cfg.Host = "0.0.0.0"
 	}

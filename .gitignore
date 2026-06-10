@@ -32,3 +32,6 @@ go.work.sum
 # .vscode/
 *.toml
 boring
+boring-linux-arm64
+docs/
+.vscode

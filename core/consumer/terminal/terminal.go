@@ -3,14 +3,14 @@ package terminal
 import (
 	"fmt"
 
-	"github.com/szuwgh/boring/core/consumer"
+	"github.com/szuwgh/boring/core/queue"
 )
 
 type TerminalConsumer struct {
 	config *TerminalConsumerConfig
 }
 
-func TerminalBuilder(config *TerminalConsumerConfig) consumer.Consumer {
+func TerminalBuilder(config *TerminalConsumerConfig) queue.Consumer {
 	return &TerminalConsumer{config: config}
 }
 
