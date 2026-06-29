@@ -38,7 +38,7 @@ func (h *HttpProducer) Start() error {
 		return err
 	}
 
-	fmt.Printf("http producer %s listening on %s\n", h.config.Name, addr)
+	//fmt.Printf("http producer %s listening on %s\n", h.config.Name, addr)
 	go nethttp.Serve(listener, mux)
 
 	return nil

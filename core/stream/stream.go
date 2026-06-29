@@ -16,6 +16,14 @@ type Consumer interface {
 	ConsumeConn(conn net.Conn) error
 }
 
+type AddrProvider interface {
+	Addr() net.Addr
+}
+
+type RouteDescriber interface {
+	RouteDescription() string
+}
+
 type ProducerBuilder func(config map[string]any) Producer
 
 type ConsumerBuilder func(config map[string]any) Consumer

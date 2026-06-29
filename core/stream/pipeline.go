@@ -18,6 +18,7 @@ func (p *Pipeline) Run() {
 		log.Printf("[stream:%s] producer start failed: %v", p.Name, err)
 		return
 	}
+	log.Print(p.routeLogLine())
 
 	go func() {
 		for {
@@ -32,6 +33,24 @@ func (p *Pipeline) Run() {
 			}()
 		}
 	}()
+}
+
+func (p *Pipeline) routeLogLine() string {
+	listenAddr := "unknown"
+	if provider, ok := p.Producer.(AddrProvider); ok {
+		if addr := provider.Addr(); addr != nil {
+			listenAddr = addr.String()
+		}
+	}
+
+	targetAddr := "unknown"
+	if describer, ok := p.Consumer.(RouteDescriber); ok {
+		if route := describer.RouteDescription(); route != "" {
+			targetAddr = route
+		}
+	}
+
+	return fmt.Sprintf("[stream:%s] listening %s -> %s", p.Name, listenAddr, targetAddr)
 }
 
 func (p *Pipeline) Stop() error {

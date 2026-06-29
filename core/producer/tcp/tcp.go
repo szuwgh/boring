@@ -2,7 +2,6 @@ package tcp
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"sync"
 
@@ -32,7 +31,7 @@ func (l *Listener) Start() error {
 	l.mu.Lock()
 	l.listener = ln
 	l.mu.Unlock()
-	log.Printf("[tcp_listener:%s] listening on %s", l.config.Name, ln.Addr())
+	//log.Printf("[tcp_listener:%s] listening on %s", l.config.Name, ln.Addr())
 	return nil
 }
 

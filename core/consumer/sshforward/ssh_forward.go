@@ -21,6 +21,13 @@ func Builder(config *Config) stream.Consumer {
 	return &Consumer{config: config}
 }
 
+func (c *Consumer) RouteDescription() string {
+	if c == nil || c.config == nil {
+		return ""
+	}
+	return c.config.Target
+}
+
 func (c *Consumer) ConsumeConn(local net.Conn) error {
 	defer local.Close()
 	if err := c.validate(); err != nil {

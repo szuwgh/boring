@@ -12,6 +12,7 @@ import (
 	"github.com/szuwgh/boring/core"
 	"github.com/szuwgh/boring/core/config"
 	"github.com/szuwgh/boring/core/consumer/claude"
+	"github.com/szuwgh/boring/core/consumer/connectforward"
 	"github.com/szuwgh/boring/core/consumer/sshforward"
 	"github.com/szuwgh/boring/core/consumer/terminal"
 	"github.com/szuwgh/boring/core/producer/http"
@@ -64,6 +65,8 @@ func main() {
 		stream.MakeProducerBuilder(tcp.ListenerBuilder))
 	core.RegisterInstance.RegisterStreamConsumer("ssh_forward",
 		stream.MakeConsumerBuilder(sshforward.Builder))
+	core.RegisterInstance.RegisterStreamConsumer("connect_forward",
+		stream.MakeConsumerBuilder(connectforward.Builder))
 
 	// Load config
 	cfg, err := config.LoadConfig("boring.toml")
