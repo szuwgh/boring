@@ -2,6 +2,7 @@ package connectforward
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -154,6 +155,65 @@ func TestConsumeConnForwardsHTTPProxyRequest(t *testing.T) {
 		t.Fatalf("unexpected upstream host: %q", req.Host)
 	}
 
+	if err := <-errCh; err != nil {
+		t.Fatalf("ConsumeConn returned error: %v", err)
+	}
+}
+
+func TestConsumeConnKeepsHTTPUpstreamWriteSideOpenUntilResponse(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen upstream: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	writeClosed := make(chan bool, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			writeClosed <- true
+			return
+		}
+		defer conn.Close()
+		reader := bufio.NewReader(conn)
+		if _, err := http.ReadRequest(reader); err != nil {
+			writeClosed <- true
+			return
+		}
+
+		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		_, probeErr := reader.ReadByte()
+		writeClosed <- errors.Is(probeErr, io.EOF)
+		_, _ = io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+	}()
+
+	consumer := Builder(&Config{Host: "git.unvdb.com", Port: 80, Target: ln.Addr().String()})
+	client, local := net.Pipe()
+	defer client.Close()
+	setDeadline(t, client)
+	setDeadline(t, local)
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- consumer.ConsumeConn(local) }()
+	if _, err := io.WriteString(client, "GET http://git.unvdb.com/ HTTP/1.1\r\nHost: git.unvdb.com\r\n\r\n"); err != nil {
+		t.Fatalf("write proxy request: %v", err)
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(client), nil)
+	if err != nil {
+		t.Fatalf("read proxy response: %v", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatalf("read proxy response body: %v", err)
+	}
+	if string(body) != "ok" {
+		t.Fatalf("unexpected response body: %q", string(body))
+	}
+	if <-writeClosed {
+		t.Fatal("upstream write side was closed before its response")
+	}
 	if err := <-errCh; err != nil {
 		t.Fatalf("ConsumeConn returned error: %v", err)
 	}

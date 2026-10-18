@@ -118,7 +118,6 @@ func (c *Consumer) handleHTTPProxyRequest(local net.Conn, req *http.Request) err
 		_ = writeResponse(local, http.StatusBadGateway, "Bad Gateway")
 		return fmt.Errorf("connect_forward: write http request to %s: %w", c.config.Target, err)
 	}
-	closeWrite(remote)
 
 	n, err := io.Copy(local, remote)
 	log.Printf("connect_forward: http %s %s via %s finished bytes=%d err=%v", req.Method, target, c.config.Target, n, err)
