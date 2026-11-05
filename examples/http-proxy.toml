@@ -1,0 +1,14 @@
+[[boring]]
+name = "server-internet"
+mode = "stream"
+
+[boring.producer]
+type = "tcp_listener"
+listen = "0.0.0.0:8081"
+
+[[boring.consumer]]
+type = "http_proxy"
+allow_clients = ["192.168.1.60/32"]
+allowed_ports = [80, 443]
+# Set true to allow all valid TCP destination ports (ignores allowed_ports).
+allow_any_port = false
